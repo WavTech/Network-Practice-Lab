@@ -1,10 +1,38 @@
 (() => {
   const SUPABASE_URL = 'https://qnnhgeuedjttatnahtgk.supabase.co';
-  const SUPABASE_KEY = window.SUPABASE_PUBLISHABLE_KEY;
   const TABLE = 'quiz_progress';
+  const KEY_STORE = 'networkplus_supabase_publishable_key';
 
+  function configuredKey() {
+    return window.SUPABASE_PUBLISHABLE_KEY || localStorage.getItem(KEY_STORE) || '';
+  }
+
+  function injectKeySetup() {
+    const setup = document.getElementById('setup');
+    if (!setup || document.getElementById('cloudKeySetup')) return;
+    const box = document.createElement('div');
+    box.id = 'cloudKeySetup';
+    box.className = 'backup';
+    box.innerHTML = `
+      <strong>☁️ Finish cloud sync setup</strong>
+      <div class="muted">Paste your Supabase publishable key once on this device. It will be stored only in this browser.</div>
+      <div class="actions">
+        <input id="cloudKeyInput" type="password" placeholder="sb_publishable_…" style="flex:2;min-width:220px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:11px 14px;font:inherit">
+        <button class="secondary" id="cloudKeySaveBtn">Save & enable cloud sync</button>
+      </div>`;
+    setup.insertBefore(box, document.getElementById('loadStatus'));
+    document.getElementById('cloudKeySaveBtn').addEventListener('click', () => {
+      const key = document.getElementById('cloudKeyInput').value.trim();
+      if (!key.startsWith('sb_publishable_')) { alert('Paste the Supabase publishable key that starts with sb_publishable_.'); return; }
+      localStorage.setItem(KEY_STORE, key);
+      location.reload();
+    });
+  }
+
+  const SUPABASE_KEY = configuredKey();
   if (!SUPABASE_KEY) {
-    console.warn('Supabase publishable key not configured.');
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectKeySetup);
+    else injectKeySetup();
     return;
   }
   if (!window.supabase || !window.supabase.createClient) {
