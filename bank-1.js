@@ -1,0 +1,1 @@
+window.BANK=window.BANK||[];
