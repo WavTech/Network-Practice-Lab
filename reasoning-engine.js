@@ -1,0 +1,114 @@
+(() => {
+  const E = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const option = (q,l) => q.options.find(o=>o.letter===l);
+  const text = (q,letters) => letters.map(l=>option(q,l)?.text || l).join(' ');
+
+  const concepts = [
+    {re:/subnet|cidr|vlsm|subnet mask|\/\d{1,2}\b/i, topic:'Subnetting & IP', why:'Subnetting defines which addresses are local and which must be reached through a router. The mask/CIDR length determines the network and usable host range.', hook:'/24 = 255.255.255.0 • /16 = 255.255.0.0'},
+    {re:/default gateway|router|routing|route\b|wan|rip\b|ospf|bgp|eigrp/i, topic:'Routing', why:'Routers make Layer 3 forwarding decisions using IP networks. Traffic for a different subnet is sent toward a router/default gateway.', hook:'Different subnet → default gateway → router'},
+    {re:/mac address|switch|bridge|layer 2|data link|802\.1q|vlan|trunk|stp|spanning tree/i, topic:'Switching & VLANs', why:'Layer 2 forwarding is based on Ethernet frames and MAC addresses. Switches/bridges learn MAC locations and forward frames out the appropriate port.', hook:'Layer 2 = frames + MAC + switches'},
+    {re:/dns|name resolution/i, topic:'DNS', why:'DNS translates host names into IP addresses. It does not assign IP addresses or determine the local subnet.', hook:'DNS = names → IP addresses'},
+    {re:/dhcp|169\.254|apipa/i, topic:'DHCP', why:'DHCP provides IP configuration such as address, subnet mask, gateway, and DNS. A 169.254.x.x APIPA address usually means the client could not obtain a DHCP lease.', hook:'DHCP = IP settings • APIPA = DHCP failed'},
+    {re:/nat|pat|private ip|public ip|translation/i, topic:'NAT/PAT', why:'NAT/PAT translates private addressing for communication beyond the local private network. It does not replace routing; the router still forwards the packet.', hook:'NAT translates • routing forwards'},
+    {re:/tcp|udp|port\b|ssh|telnet|http|https|ldap|ldaps|snmp|smtp|imap|pop3|sip|rtp|dns|dhcp/i, topic:'Ports & Protocols', why:'Ports identify application services at the Transport layer. The correct choice matches the service or protocol behavior described in the question.', hook:'Know the service first, then its port/protocol'},
+    {re:/wireless|wi-?fi|802\.11|access point|\bwap\b|ssid|wpa|wpa2|antenna|5ghz|2\.4ghz/i, topic:'Wireless', why:'Wireless questions usually hinge on frequency, standard, security mode, coverage, or AP behavior. Match the requirement to the capability of the wireless technology.', hook:'Wireless = standard + band + security'},
+    {re:/fiber|cat[356]|cable|connector|rj45|sfp|gbic|multimode|single.?mode|attenuation|otdr|poe/i, topic:'Cabling & Physical', why:'Physical-layer choices are determined by media type, connector/transceiver compatibility, distance, bandwidth, and environmental requirements.', hook:'Layer 1 = media, signal, connector, distance'},
+    {re:/topology|mesh|star|ring|bus|fault.?toler|redundan/i, topic:'Topologies', why:'Topology questions compare how devices interconnect and where redundancy or single points of failure exist.', hook:'Star = center • Mesh = redundancy'},
+    {re:/firewall|attack|malware|phishing|encryption|authentication|authorization|vpn|ids|ips|nac|security|hardening/i, topic:'Security', why:'Security controls have distinct jobs: prevention, detection, authentication, authorization, isolation, or encryption. Match the control to the stated risk.', hook:'Identify the threat → choose the control that directly mitigates it'},
+    {re:/osi|layer\s*[1-7]|transport|session|presentation|application layer|network layer/i, topic:'OSI Model', why:'The OSI model separates networking functions by layer. Identify what object or function is mentioned: signals, frames/MAC, packets/IP, segments/ports, or application data.', hook:'L2 MAC/frames • L3 IP/packets • L4 ports/segments'},
+    {re:/cloud|saas|paas|iaas|virtual|hypervisor|vswitch|virtual switch/i, topic:'Cloud & Virtualization', why:'Cloud and virtualization answers differ by what the provider manages and whether the function is implemented in software rather than dedicated hardware.', hook:'IaaS = infrastructure • PaaS = platform • SaaS = application'},
+    {re:/troubleshoot|cannot|unable|issue|problem|fails|failure|intermittent|ping|traceroute|ipconfig|netstat|baseline/i, topic:'Troubleshooting', why:'Troubleshooting questions reward the most direct next step based on the symptoms and the information already verified. Start with the layer most strongly indicated by the evidence.', hook:'Symptoms → likely layer → verify before changing'},
+  ];
+
+  const distractors = [
+    [/assign.*ip|new private ip|ip address.*assign/i,'That describes IP address assignment, normally DHCP/static configuration, not the forwarding behavior being tested.'],
+    [/dns/i,'DNS handles name resolution. It is not the mechanism for routing, switching, address assignment, or link connectivity.'],
+    [/dhcp/i,'DHCP supplies host IP configuration. It does not perform routing, switching, or application authentication.'],
+    [/encrypt/i,'Encryption protects confidentiality; it does not by itself route traffic, assign addresses, or choose a forwarding path.'],
+    [/authentication/i,'Authentication verifies identity. It is unrelated unless the question specifically describes access control or identity verification.'],
+    [/mac address/i,'MAC addresses are Layer 2 identifiers used on the local link; they are not routable IP addresses across multiple networks.'],
+    [/ip address/i,'IP addresses operate at Layer 3. If the question is about local frame forwarding or MAC learning, this is the wrong layer.'],
+    [/switch|bridge/i,'A switch/bridge is primarily a Layer 2 device. It forwards frames by MAC address rather than routing between IP networks.'],
+    [/router|routing/i,'A router is a Layer 3 device. It is only the right fit when the task requires forwarding between IP networks.'],
+    [/firewall/i,'A firewall filters traffic according to security policy. Filtering is different from addressing, switching, routing, or name resolution.'],
+    [/bus/i,'Bus topology shares a common backbone and does not provide the central-device layout of a star or the redundancy of a mesh.'],
+    [/ring/i,'Ring topology forms a loop. It is not the best answer when the key requirement is a central forwarding device or maximum path redundancy.'],
+    [/star/i,'Star topology connects endpoints to one central device, but that central point can be a single point of failure without redundancy.'],
+    [/mesh/i,'Mesh is chosen for multiple redundant paths. If the question is simply asking for a central connection point, star is the better match.'],
+  ];
+
+  function conceptFor(q){
+    const blob=`${q.question} ${q.options.map(o=>o.text).join(' ')}`;
+    return concepts.find(c=>c.re.test(blob)) || {topic:'Network Fundamentals',why:'The correct option most directly matches the networking behavior or definition described in the question.',hook:'Match the keyword in the question to the device, layer, protocol, or function.'};
+  }
+
+  function wrongWhy(q,letter,correctLetters){
+    const o=option(q,letter); if(!o) return 'This choice does not match the behavior described by the question.';
+    const t=o.text;
+    for(const [re,msg] of distractors) if(re.test(t)) return msg;
+    const c=conceptFor(q);
+    const correct=text(q,correctLetters);
+    return `This option does not match the key ${c.topic.toLowerCase()} concept being tested. Compare it with the correct choice: “${correct}”.`;
+  }
+
+  function rightWhy(q,correctLetters){
+    const c=conceptFor(q), correct=text(q,correctLetters);
+    let detail=c.why;
+    const qt=q.question.toLowerCase();
+    if(/class c|\/24/.test(qt) && /host|assign/.test(qt)) detail='A /24 has 256 total addresses: the .0 network address and .255 broadcast address are reserved, leaving .1 through .254 usable for hosts.';
+    else if(/\/16/.test(qt) && /255\.255\.255\.0/.test(q.question)) detail='A /16 requires 255.255.0.0. Using 255.255.255.0 makes the host treat only its /24 as local, so addresses elsewhere in the intended /16 are handled incorrectly.';
+    else if(/192\.168\.1\.0\/24/.test(q.question) && /255\.255\.0\.0/.test(q.question)) detail='The host should use /24 (255.255.255.0). A /16 mask makes other 192.168.x.x networks look local, so the host ARPs instead of sending that traffic to the default gateway.';
+    else if(/vlsm/i.test(q.question)) detail='VLSM uses the smallest subnet that still provides enough usable host addresses. /28 gives 14 usable, /27 gives 30, /26 gives 62, and /25 gives 126.';
+    return {topic:c.topic,why:detail,hook:c.hook,correct};
+  }
+
+  window.networkReasoning = function(q,selectedLetters,correctLetters){
+    const right=rightWhy(q,correctLetters);
+    const wrong=selectedLetters.filter(l=>!correctLetters.includes(l)).map(l=>({letter:l,text:option(q,l)?.text||l,why:wrongWhy(q,l,correctLetters)}));
+    return { ...right, wrong };
+  };
+
+  function reasoningHTML(q,selectedLetters,correctLetters,ok){
+    const r=window.networkReasoning(q,selectedLetters,correctLetters);
+    const wrongBlock=!ok && r.wrong.length ? `<div class="reasonblock wrongreason"><div class="reasontitle">❌ Why your choice was wrong</div>${r.wrong.map(w=>`<div><strong>${E(w.letter)}. ${E(w.text)}</strong><br>${E(w.why)}</div>`).join('<div class="reasonsep"></div>')}</div>`:'';
+    return `${wrongBlock}<div class="reasonblock rightreason"><div class="reasontitle">✅ Why the correct answer is right</div><div>${E(r.why)}</div></div><div class="memoryhook"><strong>🧠 Remember:</strong> ${E(r.hook)}</div><div class="reasontopic">Topic: ${E(r.topic)}</div>`;
+  }
+
+  function installStyles(){
+    if(document.getElementById('reasoningStyles')) return;
+    const s=document.createElement('style'); s.id='reasoningStyles';
+    s.textContent='.reasonblock{margin-top:12px;padding:12px 13px;border-radius:11px;font-weight:500;line-height:1.5}.wrongreason{background:#2d1821;border:1px solid #673143}.rightreason{background:#102b1b;border:1px solid #315f40}.reasontitle{font-weight:900;margin-bottom:6px}.reasonsep{height:1px;background:var(--border);margin:10px 0}.memoryhook{margin-top:10px;padding:10px 12px;background:#142846;border:1px solid #315888;border-radius:11px}.reasontopic{margin-top:7px;font-size:.78rem;color:var(--muted);font-weight:700}.review-reason{margin-top:10px}';
+    document.head.appendChild(s);
+  }
+
+  function patch(){
+    installStyles();
+    if(typeof window.submitAnswer==='function' && !window.submitAnswer.__reasoning){
+      const original=window.submitAnswer;
+      const wrapped=function(){
+        const q=state?.session?.[state.idx];
+        const chosen=typeof selected==='function'?selected():[];
+        const expected=q?.answer?.slice().sort()||[];
+        const isStudy=state?.mode==='study';
+        original();
+        if(isStudy && q && chosen.length){
+          const fb=document.getElementById('feedback');
+          if(fb && !fb.classList.contains('hidden')){
+            const ok=equal(chosen.slice().sort(),expected);
+            fb.insertAdjacentHTML('beforeend',reasoningHTML(q,chosen,expected,ok));
+          }
+        }
+      }; wrapped.__reasoning=true; window.submitAnswer=wrapped;
+    }
+    if(typeof window.reviewMissed==='function' && !window.reviewMissed.__reasoning){
+      const wrapped=function(){
+        const byId=Object.fromEntries(BANK.map(q=>[q.id,q]));
+        const miss=state.responses.filter(r=>!r.ok);
+        document.getElementById('sessionReview').innerHTML=miss.length?`<h3>Missed questions</h3>`+miss.map(r=>{const q=byId[r.id];return `<div class="review-item"><strong>#${q.id}</strong> ${E(q.question)}<div class="badtxt">Your answer:<br>${answerText(q,r.selected)}</div><div class="goodtxt">Correct answer:<br>${answerText(q,r.correct)}</div><div class="review-reason">${reasoningHTML(q,r.selected,r.correct,false)}</div></div>`}).join(''):`<p class="goodtxt">Perfect session.</p>`;
+      }; wrapped.__reasoning=true; window.reviewMissed=wrapped;
+    }
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',patch); else patch();
+  setTimeout(patch,500);
+})();
