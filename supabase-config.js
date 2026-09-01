@@ -3,13 +3,14 @@
 window.SUPABASE_PUBLISHABLE_KEY='sb_publishable_rdwrg5nVcLwN59wIwI6pew_td5ydz6u';
 
 // Load the base N10-009 bank first, then merge supplemental questions with duplicate filtering
-// before the selector/dashboard initialize. Question-specific reasoning overrides load after
-// the base reasoning engine.
+// before the selector/dashboard initialize. Version query forces GitHub Pages/browser caches
+// to pick up the latest question-bank additions.
+const EXT_VERSION='20260901-2';
 const extensionScripts=['n10009-bank.js','n10009-demo-addon.js','bank-selector.js','dashboard.js','bank-dashboard-addon.js','reasoning-engine.js','reasoning-overrides.js','dashboard-nav-fix.js'];
 (function loadNext(i=0){
   if(i>=extensionScripts.length)return;
   const script=document.createElement('script');
-  script.src=extensionScripts[i];
+  script.src=`${extensionScripts[i]}?v=${EXT_VERSION}`;
   script.onload=()=>loadNext(i+1);
   script.onerror=()=>{console.error(`Failed to load ${extensionScripts[i]}`);loadNext(i+1)};
   document.head.appendChild(script);
