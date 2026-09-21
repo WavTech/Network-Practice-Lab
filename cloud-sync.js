@@ -14,7 +14,7 @@
     box.id = 'cloudKeySetup';
     box.className = 'backup';
     box.innerHTML = `
-      <strong>☁️ Finish cloud sync setup</strong>
+      <strong>Finish cloud sync setup</strong>
       <div class="muted">Paste your Supabase publishable key once on this device. It will be stored only in this browser.</div>
       <div class="actions">
         <input id="cloudKeyInput" type="password" placeholder="sb_publishable_…" style="flex:2;min-width:220px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:11px 14px;font:inherit">
@@ -64,7 +64,7 @@
     box.id = 'cloudSyncBox';
     box.className = 'backup';
     box.innerHTML = `
-      <strong>☁️ Cloud progress sync</strong>
+      <strong>Cloud progress sync</strong>
       <div id="cloudStatus" class="muted">Checking sign-in…</div>
       <div id="cloudSignedOut">
         <div class="muted">Sign in with your email to sync progress between phone and computer.</div>
@@ -75,7 +75,7 @@
       </div>
       <div id="cloudSignedIn" class="hidden">
         <div class="actions">
-          <button class="secondary" id="cloudSyncNowBtn">☁ Sync now</button>
+          <button class="secondary" id="cloudSyncNowBtn">Sync now</button>
           <button class="secondary" id="cloudSignOutBtn">Sign out</button>
         </div>
       </div>`;
@@ -103,7 +103,7 @@
     const redirectTo = window.location.origin + window.location.pathname;
     const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
     if (error) { setCloudStatus(`Sign-in failed: ${error.message}`, 'bad'); return; }
-    setCloudStatus('✅ Check your email and tap the sign-in link.', 'good');
+    setCloudStatus('Check your email and tap the sign-in link.', 'good');
   }
 
   async function loadRemote() {
@@ -129,7 +129,7 @@
       const remoteRow = await loadRemote();
       if (!remoteRow) {
         await saveRemote(local);
-        setCloudStatus(`✅ Synced as ${currentUser.email}`, 'good');
+        setCloudStatus(`Synced as ${currentUser.email}`, 'good');
         return;
       }
       const remote = remoteRow.progress;
@@ -137,17 +137,17 @@
       const remoteTime = Math.max(Date.parse(remoteRow.updated_at || 0) || 0, localTimestamp(remote));
       if (remote && remoteTime > localTime + 1000) {
         if (originalPutSaved) originalPutSaved(remote);
-        setCloudStatus(`✅ Restored latest cloud progress for ${currentUser.email}`, 'good');
+        setCloudStatus(`Restored latest cloud progress for ${currentUser.email}`, 'good');
         const stats = document.getElementById('stats');
         if (typeof showStats === 'function' && stats && !stats.classList.contains('hidden')) showStats();
       } else {
         await saveRemote(local);
-        setCloudStatus(`✅ Synced as ${currentUser.email}`, 'good');
+        setCloudStatus(`Synced as ${currentUser.email}`, 'good');
       }
     } catch (err) {
       console.error('Cloud sync error:', err);
       const msg = err && err.message ? err.message : String(err);
-      if (/quiz_progress|relation|does not exist/i.test(msg)) setCloudStatus('⚠️ Cloud table is not ready. Run supabase-setup.sql once in Supabase.', 'bad');
+      if (/quiz_progress|relation|does not exist/i.test(msg)) setCloudStatus('Cloud table is not ready. Run supabase-setup.sql once in Supabase.', 'bad');
       else setCloudStatus(`Cloud sync error: ${msg}`, 'bad');
     } finally { syncing = false; }
   }

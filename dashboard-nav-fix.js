@@ -15,7 +15,7 @@
           const actions = document.createElement('div');
           actions.className = 'actions';
           actions.style.marginBottom = '14px';
-          actions.innerHTML = '<button id="dashboardBackBtn" class="secondary">← Back to quiz setup</button>';
+          actions.innerHTML = '<button id="dashboardBackBtn" class="secondary">Back to quiz setup</button>';
           stats.insertBefore(actions, stats.firstChild);
           document.getElementById('dashboardBackBtn').addEventListener('click', () => {
             stats.classList.add('hidden');

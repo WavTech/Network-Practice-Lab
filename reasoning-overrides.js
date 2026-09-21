@@ -90,7 +90,7 @@
       match:q=>has(q.question,/traffic.*recirculated.*amplified.*loops|loops.*switching topology/i),
       topic:'Switching & VLANs',
       why:'A Layer 2 loop can cause broadcast and unknown-unicast frames to circulate repeatedly. Because Ethernet frames have no Layer 2 TTL, copies multiply and consume bandwidth, producing a broadcast storm.',
-      hook:'Switching loop → frames multiply → broadcast storm',
+      hook:'A switching loop makes frames multiply and creates a broadcast storm',
       wrong:{}
     },
     {

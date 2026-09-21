@@ -21,7 +21,7 @@
       if (count.selectedOptions[0]?.disabled) count.value = source.length >= 50 ? '50' : source.length >= 25 ? '25' : '10';
     }
     const status = document.getElementById('loadStatus');
-    if (status) status.textContent = `✅ ${source.length} questions loaded — ${labelFor(key)}.`;
+    if (status) status.textContent = `${source.length} questions loaded — ${labelFor(key)}.`;
     const sub = document.querySelector('.sub');
     if (sub) sub.textContent = `${labelFor(key)} • instant grading • cloud progress tracking`;
     const pool = document.getElementById('pool');
