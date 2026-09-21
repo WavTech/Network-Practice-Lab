@@ -1,6 +1,6 @@
-# Network+ Practice Lab
+# Wav IT Labs
 
-A browser-based CompTIA Network+ N10-007 practice quiz built as a static site.
+A browser-based IT training lab with CompTIA Network+ practice, server hardware interview prep, and data-center troubleshooting material.
 
 ## Features
 
