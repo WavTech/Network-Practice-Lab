@@ -4,7 +4,7 @@ window.SUPABASE_PUBLISHABLE_KEY='sb_publishable_rdwrg5nVcLwN59wIwI6pew_td5ydz6u'
 
 // Load N10-009 banks and supplemental material before the selector/dashboard initialize.
 // Supplemental banks normalize question text and skip duplicates at load time.
-const EXT_VERSION='20260921-1';
+const EXT_VERSION='20260921-2';
 const extensionScripts=['n10009-bank.js','n10009-demo-addon.js','n10009-original-exam2.js','bank-selector.js','dashboard.js','bank-dashboard-addon.js','reasoning-engine.js','reasoning-overrides.js','dashboard-nav-fix.js','data-center-prep.js'];
 (function loadNext(i=0){
   if(i>=extensionScripts.length)return;
