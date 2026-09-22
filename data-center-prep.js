@@ -78,6 +78,7 @@
     { q: 'What does hot-swappable mean?', options: ['A supported component can be replaced while the system remains powered', 'A component can be installed in any server model', 'A component never requires firmware', 'A component automatically repairs itself'], answer: 'A supported component can be replaced while the system remains powered' },
     { q: 'Why should hardware and firmware compatibility be confirmed before installing a replacement part?', options: ['The BIOS, iDRAC, controller, and server platform must support the part', 'It increases the network subnet size', 'It changes the Linux root password', 'It prevents users from accessing iDRAC'], answer: 'The BIOS, iDRAC, controller, and server platform must support the part' }
   ];
+  testQuestions.forEach((question, questionIndex) => { question.id = `dc-${String(questionIndex + 1).padStart(3, '0')}`; });
 
   let filtered = cards.slice();
   let index = 0;
@@ -124,8 +125,48 @@
     return copy;
   }
 
-  function startTest() {
-    testSession = shuffled(testQuestions).slice(0, 20).map(question => ({
+  function dataCenterProgress() {
+    const saved = typeof getSaved === 'function' ? getSaved() : null;
+    return saved?.dataCenter || {
+      seen: {},
+      missed: {},
+      stats: { attempts: 0, correct: 0 },
+      perQuestion: {},
+      sessions: []
+    };
+  }
+
+  function renderDataCenterProgress() {
+    const target = document.getElementById('dcTracking');
+    if (!target) return;
+    const progress = dataCenterProgress();
+    const completed = Object.keys(progress.seen || {}).length;
+    const attempts = progress.stats?.attempts || 0;
+    const correct = progress.stats?.correct || 0;
+    const accuracy = attempts ? Math.round((correct / attempts) * 100) : 0;
+    const missed = Object.keys(progress.missed || {}).length;
+    const latest = progress.sessions?.[0];
+    target.innerHTML = `
+      <div class="dctracktitle">Your Data Center Progress</div>
+      <div class="dctrackgrid">
+        <div class="dctrackstat"><strong>${completed}<span>/${testQuestions.length}</span></strong><small>Questions completed</small></div>
+        <div class="dctrackstat"><strong>${attempts}</strong><small>Answers submitted</small></div>
+        <div class="dctrackstat"><strong>${accuracy}%</strong><small>Accuracy</small></div>
+        <div class="dctrackstat"><strong>${missed}</strong><small>Missed pool</small></div>
+      </div>
+      ${latest ? `<div class="dctracklatest">Last test: <strong>${latest.correct}/${latest.total} (${latest.percent}%)</strong> · ${new Date(latest.date).toLocaleString()}</div>` : '<div class="dctracklatest">No completed data-center tests yet.</div>'}`;
+    const missedButton = document.getElementById('dcMissedTestBtn');
+    if (missedButton) missedButton.disabled = missed === 0;
+  }
+
+  function startTest(missedOnly = false) {
+    const progress = dataCenterProgress();
+    const source = missedOnly ? testQuestions.filter(question => progress.missed?.[question.id]) : testQuestions;
+    if (!source.length) {
+      alert('Your Data Center missed pool is empty.');
+      return;
+    }
+    testSession = shuffled(source).slice(0, Math.min(20, source.length)).map(question => ({
       ...question,
       options: shuffled(question.options)
     }));
@@ -170,6 +211,23 @@
     testAnswered = true;
     if (correct) testCorrect++;
 
+    if (typeof getSaved === 'function' && typeof putSaved === 'function') {
+      const saved = getSaved();
+      const progress = saved.dataCenter;
+      progress.seen[question.id] = (progress.seen[question.id] || 0) + 1;
+      if (correct) delete progress.missed[question.id];
+      else progress.missed[question.id] = true;
+      progress.stats.attempts = (progress.stats.attempts || 0) + 1;
+      if (correct) progress.stats.correct = (progress.stats.correct || 0) + 1;
+      const perQuestion = progress.perQuestion[question.id] || { attempts: 0, correct: 0 };
+      perQuestion.attempts++;
+      if (correct) perQuestion.correct++;
+      perQuestion.lastAnswered = new Date().toISOString();
+      progress.perQuestion[question.id] = perQuestion;
+      saved.updatedAt = new Date().toISOString();
+      putSaved(saved);
+    }
+
     document.querySelectorAll('.dctestoption').forEach(option => {
       const input = option.querySelector('input');
       input.disabled = true;
@@ -201,6 +259,18 @@
     document.getElementById('dcTestQuestionWrap').classList.add('hidden');
     const results = document.getElementById('dcTestResults');
     const percent = Math.round((testCorrect / testSession.length) * 100);
+    if (typeof getSaved === 'function' && typeof putSaved === 'function') {
+      const saved = getSaved();
+      saved.dataCenter.sessions.unshift({
+        date: new Date().toISOString(),
+        total: testSession.length,
+        correct: testCorrect,
+        percent
+      });
+      saved.dataCenter.sessions = saved.dataCenter.sessions.slice(0, 100);
+      saved.updatedAt = new Date().toISOString();
+      putSaved(saved);
+    }
     const message = percent >= 85 ? 'Interview ready. Keep drilling the troubleshooting sequence.' : percent >= 70 ? 'Solid foundation. Review the cards you hesitated on.' : 'Review the flashcards and retake the test.';
     results.innerHTML = `
       <h4>Test complete</h4>
@@ -208,7 +278,7 @@
       <p class="muted">${message}</p>
       <button id="dcRetakeTestBtn">Retake test</button>`;
     results.classList.remove('hidden');
-    document.getElementById('dcRetakeTestBtn').addEventListener('click', startTest);
+    document.getElementById('dcRetakeTestBtn').addEventListener('click', () => startTest(false));
   }
 
   function init() {
@@ -249,7 +319,11 @@
         <div id="dcTestIntro">
           <h3>Data Center Practice Test</h3>
           <p class="muted">20 randomized questions covering PowerEdge minimum to POST, RAID, NVIDIA GPUs, Linux commands, and break-fix scenarios.</p>
-          <button id="dcStartTestBtn">Start test</button>
+          <div id="dcTracking"></div>
+          <div class="actions dcteststartactions">
+            <button id="dcStartTestBtn">Start test</button>
+            <button class="secondary" id="dcMissedTestBtn">Practice missed questions</button>
+          </div>
         </div>
         <div id="dcTestQuestionWrap" class="hidden">
           <div class="topbar">
@@ -270,7 +344,7 @@
 
     const style = document.createElement('style');
     style.id = 'dataCenterPrepStyles';
-    style.textContent = `.dcprep{margin-top:20px}.dcprephead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}.dcprephead h2{margin:0 0 4px}.dcfilter{max-width:320px;margin:18px 0 12px}.dccard{min-height:210px;background:linear-gradient(180deg,#182742,#121d31);border:1px solid #365b91;border-radius:16px;padding:20px;display:flex;flex-direction:column;justify-content:center}.dckicker{color:var(--accent);font-size:.75rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px}.dcquestion{font-size:clamp(1.15rem,2.8vw,1.5rem);font-weight:800}.dcanswer{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);color:#dbe8ff}.dcanswer code{background:#08101e;border:1px solid var(--border);border-radius:6px;padding:2px 6px}.dcactions button{min-width:120px}.dctest{margin-top:28px;padding-top:24px;border-top:1px solid var(--border)}.dctest h3,.dctest h4{margin:0 0 8px}.dctestquestion{font-size:clamp(1.1rem,2.6vw,1.4rem);font-weight:800;margin:20px 0 14px}.dctestoption{display:flex;gap:12px;align-items:flex-start;background:var(--panel2);border:1px solid var(--border);border-radius:13px;padding:13px 14px;margin:10px 0;cursor:pointer}.dctestoption:hover{border-color:var(--accent)}.dctestoption input{margin-top:5px;transform:scale(1.2)}.dctestoption.correct{border-color:var(--good);background:#153322}.dctestoption.wrong{border-color:var(--bad);background:#381c27}.dctestresultscore{font-size:1.8rem;font-weight:900;margin:10px 0}@media(max-width:600px){.dcprephead{display:block}.dcprephead .pill{display:inline-block;margin-top:10px}.dccard{min-height:235px}.dcactions button{min-width:calc(50% - 5px)}}`;
+    style.textContent = `.dcprep{margin-top:20px}.dcprephead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}.dcprephead h2{margin:0 0 4px}.dcfilter{max-width:320px;margin:18px 0 12px}.dccard{min-height:210px;background:linear-gradient(180deg,#182742,#121d31);border:1px solid #365b91;border-radius:16px;padding:20px;display:flex;flex-direction:column;justify-content:center}.dckicker{color:var(--accent);font-size:.75rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px}.dcquestion{font-size:clamp(1.15rem,2.8vw,1.5rem);font-weight:800}.dcanswer{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);color:#dbe8ff}.dcanswer code{background:#08101e;border:1px solid var(--border);border-radius:6px;padding:2px 6px}.dcactions button{min-width:120px}.dctest{margin-top:28px;padding-top:24px;border-top:1px solid var(--border)}.dctest h3,.dctest h4{margin:0 0 8px}.dctestquestion{font-size:clamp(1.1rem,2.6vw,1.4rem);font-weight:800;margin:20px 0 14px}.dctestoption{display:flex;gap:12px;align-items:flex-start;background:var(--panel2);border:1px solid var(--border);border-radius:13px;padding:13px 14px;margin:10px 0;cursor:pointer}.dctestoption:hover{border-color:var(--accent)}.dctestoption input{margin-top:5px;transform:scale(1.2)}.dctestoption.correct{border-color:var(--good);background:#153322}.dctestoption.wrong{border-color:var(--bad);background:#381c27}.dctestresultscore{font-size:1.8rem;font-weight:900;margin:10px 0}.dctracktitle{font-size:.78rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}.dctrackgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.dctrackstat{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:11px}.dctrackstat strong{display:block;font-size:1.3rem}.dctrackstat strong span{font-size:.75rem;color:var(--muted)}.dctrackstat small{display:block;color:var(--muted);font-size:.7rem}.dctracklatest{color:var(--muted);font-size:.78rem;margin-top:9px}.dcteststartactions{margin-top:12px}@media(max-width:600px){.dcprephead{display:block}.dcprephead .pill{display:inline-block;margin-top:10px}.dccard{min-height:235px}.dcactions button{min-width:calc(50% - 5px)}.dctrackgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}`;
     document.head.appendChild(style);
 
     document.getElementById('dcCategory').addEventListener('change', event => {
@@ -283,9 +357,21 @@
     document.getElementById('dcPrevBtn').addEventListener('click', () => move(-1));
     document.getElementById('dcNextBtn').addEventListener('click', () => move(1));
     document.getElementById('dcShuffleBtn').addEventListener('click', shuffleCards);
-    document.getElementById('dcStartTestBtn').addEventListener('click', startTest);
+    document.getElementById('dcStartTestBtn').addEventListener('click', () => startTest(false));
+    document.getElementById('dcMissedTestBtn').addEventListener('click', () => startTest(true));
     document.getElementById('dcTestSubmitBtn').addEventListener('click', submitTestAnswer);
     document.getElementById('dcTestNextBtn').addEventListener('click', nextTestQuestion);
+    if (typeof window.putSaved === 'function' && !window.putSaved.__dataCenterWrapped) {
+      const originalPutSaved = window.putSaved;
+      const wrappedPutSaved = function(saved) {
+        const result = originalPutSaved(saved);
+        setTimeout(renderDataCenterProgress, 0);
+        return result;
+      };
+      wrappedPutSaved.__dataCenterWrapped = true;
+      window.putSaved = wrappedPutSaved;
+    }
+    renderDataCenterProgress();
     render();
   }
 

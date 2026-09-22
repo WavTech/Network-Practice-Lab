@@ -399,13 +399,20 @@
       };
       function blankSave() {
         return {
-          version: 2,
+          version: 3,
           seen: {},
           missed: {},
           bookmarks: {},
           stats: { attempts: 0, correct: 0 },
           perQuestion: {},
           sessions: [],
+          dataCenter: {
+            seen: {},
+            missed: {},
+            stats: { attempts: 0, correct: 0 },
+            perQuestion: {},
+            sessions: [],
+          },
           updatedAt: null,
         };
       }
@@ -418,8 +425,16 @@
         n.stats = s.stats || n.stats;
         n.perQuestion = s.perQuestion || {};
         n.sessions = Array.isArray(s.sessions) ? s.sessions : [];
+        const dc = s.dataCenter || {};
+        n.dataCenter.seen = dc.seen || {};
+        n.dataCenter.missed = dc.missed || {};
+        n.dataCenter.stats = dc.stats || n.dataCenter.stats;
+        n.dataCenter.perQuestion = dc.perQuestion || {};
+        n.dataCenter.sessions = Array.isArray(dc.sessions)
+          ? dc.sessions
+          : [];
         n.updatedAt = s.updatedAt || null;
-        n.version = 2;
+        n.version = 3;
         return n;
       }
       function getSaved() {
@@ -720,9 +735,9 @@
         }
       }
     </script>
-    <script src="data-center-prep.js?v=20260921-3"></script>
+    <script src="data-center-prep.js?v=20260922-1"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js?v=20260921-3"></script>
+    <script src="supabase-config.js?v=20260922-1"></script>
     <script src="cloud-sync.js"></script>
   </body>
 </html>

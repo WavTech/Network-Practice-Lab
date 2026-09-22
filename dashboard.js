@@ -1,5 +1,6 @@
 (() => {
   const TOTAL_QUESTIONS = 480;
+  const TOTAL_DATA_CENTER_QUESTIONS = 25;
   const pct = (n, d) => d ? Math.round((n / d) * 100) : 0;
   const escDash = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
@@ -32,7 +33,20 @@
     const seen = Object.keys(s.seen || {}).length;
     const attempts = s.stats?.attempts || 0;
     const correct = s.stats?.correct || 0;
-    return { s, seen, attempts, correct, accuracy: pct(correct, attempts), completion: pct(seen, TOTAL_QUESTIONS) };
+    const dc = s.dataCenter || {};
+    const dcSeen = Object.keys(dc.seen || {}).length;
+    const dcAttempts = dc.stats?.attempts || 0;
+    const dcCorrect = dc.stats?.correct || 0;
+    const dataCenter = {
+      seen: dcSeen,
+      attempts: dcAttempts,
+      correct: dcCorrect,
+      accuracy: pct(dcCorrect, dcAttempts),
+      completion: pct(dcSeen, TOTAL_DATA_CENTER_QUESTIONS),
+      missed: Object.keys(dc.missed || {}).length,
+      sessions: Array.isArray(dc.sessions) ? dc.sessions : []
+    };
+    return { s, seen, attempts, correct, accuracy: pct(correct, attempts), completion: pct(seen, TOTAL_QUESTIONS), dataCenter };
   }
 
   function bar(label, value, detail = '') {
@@ -99,7 +113,9 @@
     const d = getData();
     if (!d) return;
     const last = d.s.sessions?.[0];
-    el.innerHTML = `<div class="dashtitle"><div><div class="dashkicker">YOUR PROGRESS</div><h2>Network+ Dashboard</h2></div><button class="secondary dashopen" onclick="showStats()">Open details</button></div>
+    const dcLast = d.dataCenter.sessions[0];
+    el.innerHTML = `<div class="dashtitle"><div><div class="dashkicker">YOUR PROGRESS</div><h2>Wav IT Labs Dashboard</h2></div><button class="secondary dashopen" onclick="showStats()">Open details</button></div>
+      <div class="dashlabtitle">Network+ Lab</div>
       <div class="dashgrid">
         <div class="dashstat"><div class="dashnum">${d.seen}<span>/480</span></div><div class="dashlabel">Questions completed</div></div>
         <div class="dashstat"><div class="dashnum">${d.completion}%</div><div class="dashlabel">Bank completion</div></div>
@@ -107,7 +123,18 @@
         <div class="dashstat"><div class="dashnum">${Object.keys(d.s.missed || {}).length}</div><div class="dashlabel">In missed pool</div></div>
       </div>
       ${bar('Question bank', d.completion, `${d.seen} of ${TOTAL_QUESTIONS} unique questions seen`)}
-      ${last ? `<div class="dashlatest">Last session <strong>${last.correct}/${last.total} (${last.percent}%)</strong> · ${new Date(last.date).toLocaleString()}</div>` : '<div class="dashlatest">No completed sessions yet — knock out a set and your history will show here.</div>'}`;
+      ${last ? `<div class="dashlatest">Last Network+ session <strong>${last.correct}/${last.total} (${last.percent}%)</strong> · ${new Date(last.date).toLocaleString()}</div>` : '<div class="dashlatest">No completed Network+ sessions yet.</div>'}
+      <div class="dashsection">
+        <div class="dashlabtitle">Data Center Lab</div>
+        <div class="dashgrid">
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.seen}<span>/${TOTAL_DATA_CENTER_QUESTIONS}</span></div><div class="dashlabel">Questions completed</div></div>
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.completion}%</div><div class="dashlabel">Test coverage</div></div>
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.accuracy}%</div><div class="dashlabel">Data Center accuracy</div></div>
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.missed}</div><div class="dashlabel">Data Center missed</div></div>
+        </div>
+        ${bar('Data Center test bank', d.dataCenter.completion, `${d.dataCenter.seen} of ${TOTAL_DATA_CENTER_QUESTIONS} unique questions seen`)}
+        ${dcLast ? `<div class="dashlatest">Last Data Center test <strong>${dcLast.correct}/${dcLast.total} (${dcLast.percent}%)</strong> · ${new Date(dcLast.date).toLocaleString()}</div>` : '<div class="dashlatest">No completed Data Center tests yet.</div>'}
+      </div>`;
   }
 
   function topicTable(topics) {
@@ -130,9 +157,11 @@
     const topics = topicStats(d.s);
     const weakestTopics = [...topics].sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).slice(0,6);
     const sessions = (d.s.sessions || []).slice(0, 5);
+    const dcSessions = d.dataCenter.sessions.slice(0, 5);
     const bookmarks = Object.keys(d.s.bookmarks || {}).length;
 
     stats.innerHTML = `<div class="dashtitle"><div><div class="dashkicker">DETAILED STATS</div><h2>Progress Dashboard</h2></div></div>
+      <div class="dashlabtitle">Network+ Lab</div>
       <div class="dashgrid">
         <div class="dashstat"><div class="dashnum">${d.seen}<span>/480</span></div><div class="dashlabel">Unique questions</div></div>
         <div class="dashstat"><div class="dashnum">${d.attempts}</div><div class="dashlabel">Answers submitted</div></div>
@@ -146,6 +175,19 @@
         <div class="dashsection"><h3>Weakest topics</h3>${weakestTopics.length ? weakestTopics.map(x => `<div class="dashrow"><div><strong>${escDash(x.topic)}</strong><div class="dashdetail">${x.questionCount} unique questions · ${x.attempts} attempts</div></div><div class="dashbadge ${x.accuracy<60?'low':''}">${x.accuracy}%</div></div>`).join('') : '<div class="muted">Topic performance appears as you build answer history.</div>'}</div>
       </div>
       <div class="dashsection"><h3>Recent sessions</h3>${sessions.length ? sessions.map(x => `<div class="dashsession"><span>${new Date(x.date).toLocaleString()}</span><strong>${x.correct}/${x.total} · ${x.percent}% · ${escDash(x.mode)}</strong></div>`).join('') : '<div class="muted">No completed sessions saved yet.</div>'}</div>
+      <div class="dashsection">
+        <div class="dashlabtitle">Data Center Lab</div>
+        <div class="dashgrid">
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.seen}<span>/${TOTAL_DATA_CENTER_QUESTIONS}</span></div><div class="dashlabel">Unique questions</div></div>
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.attempts}</div><div class="dashlabel">Answers submitted</div></div>
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.accuracy}%</div><div class="dashlabel">Overall accuracy</div></div>
+          <div class="dashstat"><div class="dashnum">${d.dataCenter.missed}</div><div class="dashlabel">Missed pool</div></div>
+        </div>
+        ${bar('Data Center test coverage', d.dataCenter.completion, `${d.dataCenter.seen} of ${TOTAL_DATA_CENTER_QUESTIONS} unique questions completed`)}
+        ${bar('Data Center answer accuracy', d.dataCenter.accuracy, `${d.dataCenter.correct} correct out of ${d.dataCenter.attempts} attempts`)}
+        <h3>Recent Data Center tests</h3>
+        ${dcSessions.length ? dcSessions.map(x => `<div class="dashsession"><span>${new Date(x.date).toLocaleString()}</span><strong>${x.correct}/${x.total} · ${x.percent}%</strong></div>`).join('') : '<div class="muted">No completed Data Center tests saved yet.</div>'}
+      </div>
       <div class="actions"><button class="secondary" onclick="exportProgress()">Export Progress</button><button class="secondary" onclick="document.getElementById('importFile').click()">Import Progress</button></div>`;
   }
 
@@ -153,7 +195,7 @@
     if (document.getElementById('dashboardStyles')) return;
     const style = document.createElement('style');
     style.id = 'dashboardStyles';
-    style.textContent = `.dashcard{border-color:#365b91;background:linear-gradient(180deg,#14213a,#10192b)}.dashtitle{display:flex;align-items:center;justify-content:space-between;gap:12px}.dashtitle h2{margin:.15rem 0 .6rem}.dashkicker{font-size:.72rem;font-weight:900;letter-spacing:.14em;color:var(--accent)}.dashopen{flex:0 0 auto}.dashgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}.dashstat{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:13px}.dashnum{font-size:1.65rem;font-weight:900}.dashnum span{font-size:.8rem;color:var(--muted);font-weight:700}.dashlabel,.dashdetail{font-size:.78rem;color:var(--muted)}.dashbar{margin:13px 0}.dashbarhead{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}.dashtrack{height:12px;border-radius:999px;background:#08101e;overflow:hidden;border:1px solid var(--border)}.dashfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--good));border-radius:999px}.dashlatest{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--muted)}.dashsection{margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}.dashsection h3{margin:0 0 10px}.dashcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.dashrow,.dashsession{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border)}.dashrow:first-of-type,.dashsession:first-of-type{border-top:0}.dashbadge{min-width:54px;text-align:center;padding:5px 8px;border-radius:999px;background:#153322;color:var(--good);font-weight:900}.dashbadge.low{background:#381c27;color:var(--bad)}.dashsession{color:var(--muted)}.dashsession strong{color:var(--text);text-align:right}.topictable{margin-top:12px;border:1px solid var(--border);border-radius:14px;overflow:hidden}.topicrow{display:grid;grid-template-columns:minmax(220px,2fr) minmax(82px,.7fr) minmax(110px,.8fr) minmax(110px,.8fr);gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--border);background:var(--panel2)}.topicrow:first-child{border-top:0}.topicmetric{font-size:1.05rem;font-weight:900}.strengthpill{justify-self:end;padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:900;border:1px solid var(--border);white-space:nowrap}.strengthpill.strong{background:#153322;color:var(--good);border-color:#315f40}.strengthpill.solid{background:#142846;color:#9fc5ff;border-color:#315888}.strengthpill.warn{background:#3a3214;color:#ffe7a0;border-color:#77651e}.strengthpill.weak{background:#381c27;color:var(--bad);border-color:#793247}.strengthpill.neutral{background:#20283a;color:var(--muted)}@media(max-width:700px){.dashopen{display:none}.dashcols{grid-template-columns:1fr}.dashsession{display:block}.dashsession strong{display:block;text-align:left;margin-top:3px}.topicrow{grid-template-columns:1fr 78px 88px}.strengthpill{grid-column:1/-1;justify-self:start}.topicname{min-width:0}}`;
+    style.textContent = `.dashcard{border-color:#365b91;background:linear-gradient(180deg,#14213a,#10192b)}.dashtitle{display:flex;align-items:center;justify-content:space-between;gap:12px}.dashtitle h2{margin:.15rem 0 .6rem}.dashkicker{font-size:.72rem;font-weight:900;letter-spacing:.14em;color:var(--accent)}.dashlabtitle{font-size:.8rem;font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:var(--accent);margin-top:12px}.dashopen{flex:0 0 auto}.dashgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}.dashstat{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:13px}.dashnum{font-size:1.65rem;font-weight:900}.dashnum span{font-size:.8rem;color:var(--muted);font-weight:700}.dashlabel,.dashdetail{font-size:.78rem;color:var(--muted)}.dashbar{margin:13px 0}.dashbarhead{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}.dashtrack{height:12px;border-radius:999px;background:#08101e;overflow:hidden;border:1px solid var(--border)}.dashfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--good));border-radius:999px}.dashlatest{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--muted)}.dashsection{margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}.dashsection h3{margin:0 0 10px}.dashcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.dashrow,.dashsession{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border)}.dashrow:first-of-type,.dashsession:first-of-type{border-top:0}.dashbadge{min-width:54px;text-align:center;padding:5px 8px;border-radius:999px;background:#153322;color:var(--good);font-weight:900}.dashbadge.low{background:#381c27;color:var(--bad)}.dashsession{color:var(--muted)}.dashsession strong{color:var(--text);text-align:right}.topictable{margin-top:12px;border:1px solid var(--border);border-radius:14px;overflow:hidden}.topicrow{display:grid;grid-template-columns:minmax(220px,2fr) minmax(82px,.7fr) minmax(110px,.8fr) minmax(110px,.8fr);gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--border);background:var(--panel2)}.topicrow:first-child{border-top:0}.topicmetric{font-size:1.05rem;font-weight:900}.strengthpill{justify-self:end;padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:900;border:1px solid var(--border);white-space:nowrap}.strengthpill.strong{background:#153322;color:var(--good);border-color:#315f40}.strengthpill.solid{background:#142846;color:#9fc5ff;border-color:#315888}.strengthpill.warn{background:#3a3214;color:#ffe7a0;border-color:#77651e}.strengthpill.weak{background:#381c27;color:var(--bad);border-color:#793247}.strengthpill.neutral{background:#20283a;color:var(--muted)}@media(max-width:700px){.dashopen{display:none}.dashcols{grid-template-columns:1fr}.dashsession{display:block}.dashsession strong{display:block;text-align:left;margin-top:3px}.topicrow{grid-template-columns:1fr 78px 88px}.strengthpill{grid-column:1/-1;justify-self:start}.topicname{min-width:0}}`;
     document.head.appendChild(style);
   }
 
