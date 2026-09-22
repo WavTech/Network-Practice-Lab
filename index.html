@@ -399,7 +399,7 @@
       };
       function blankSave() {
         return {
-          version: 3,
+          version: 4,
           seen: {},
           missed: {},
           bookmarks: {},
@@ -412,6 +412,7 @@
             stats: { attempts: 0, correct: 0 },
             perQuestion: {},
             sessions: [],
+            imports: {},
           },
           updatedAt: null,
         };
@@ -433,8 +434,30 @@
         n.dataCenter.sessions = Array.isArray(dc.sessions)
           ? dc.sessions
           : [];
+        n.dataCenter.imports = dc.imports || {};
+        const shouldImportDataCenterHistory =
+          !n.dataCenter.imports.interviewPracticeResults20260922 &&
+          (s.updatedAt ||
+            (s.stats && s.stats.attempts > 0) ||
+            (Array.isArray(s.sessions) && s.sessions.length > 0));
+        if (shouldImportDataCenterHistory) {
+          const historicalTests = [
+            { date: "2026-09-22T22:00:00.000Z", total: 20, correct: 17, percent: 85, source: "Imported result" },
+            { date: "2026-09-22T22:01:00.000Z", total: 20, correct: 20, percent: 100, source: "Imported result" },
+            { date: "2026-09-22T22:02:00.000Z", total: 20, correct: 20, percent: 100, source: "Imported result" },
+          ];
+          n.dataCenter.sessions = [
+            ...historicalTests.slice().reverse(),
+            ...n.dataCenter.sessions,
+          ].slice(0, 100);
+          n.dataCenter.stats.attempts =
+            (n.dataCenter.stats.attempts || 0) + 60;
+          n.dataCenter.stats.correct =
+            (n.dataCenter.stats.correct || 0) + 57;
+          n.dataCenter.imports.interviewPracticeResults20260922 = true;
+        }
         n.updatedAt = s.updatedAt || null;
-        n.version = 3;
+        n.version = 4;
         return n;
       }
       function getSaved() {
@@ -735,9 +758,9 @@
         }
       }
     </script>
-    <script src="data-center-prep.js?v=20260922-1"></script>
+    <script src="data-center-prep.js?v=20260922-2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js?v=20260922-1"></script>
+    <script src="supabase-config.js?v=20260922-2"></script>
     <script src="cloud-sync.js"></script>
   </body>
 </html>
