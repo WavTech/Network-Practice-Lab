@@ -433,6 +433,30 @@
         n.dataCenter.sessions = Array.isArray(dc.sessions)
           ? dc.sessions
           : [];
+        const importedDataCenterTests = n.dataCenter.sessions.filter(
+          (session) => session && session.source === "Imported result",
+        );
+        if (importedDataCenterTests.length) {
+          const importedAttempts = importedDataCenterTests.reduce(
+            (total, session) => total + (Number(session.total) || 0),
+            0,
+          );
+          const importedCorrect = importedDataCenterTests.reduce(
+            (total, session) => total + (Number(session.correct) || 0),
+            0,
+          );
+          n.dataCenter.sessions = n.dataCenter.sessions.filter(
+            (session) => !session || session.source !== "Imported result",
+          );
+          n.dataCenter.stats.attempts = Math.max(
+            0,
+            (n.dataCenter.stats.attempts || 0) - importedAttempts,
+          );
+          n.dataCenter.stats.correct = Math.max(
+            0,
+            (n.dataCenter.stats.correct || 0) - importedCorrect,
+          );
+        }
         n.updatedAt = s.updatedAt || null;
         n.version = 3;
         return n;
