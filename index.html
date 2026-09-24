@@ -59,6 +59,16 @@
         margin: 16px 0;
         box-shadow: 0 8px 24px #00000012;
       }
+      /* Keep the dashboard readable if an older injected stylesheet is cached. */
+      #quickDashboard {
+        background: linear-gradient(180deg, #fff3e7, #ffffff);
+        border-color: #e3a266;
+        color: var(--text);
+      }
+      #quickDashboard .dashkicker,
+      #quickDashboard .dashlabtitle {
+        color: var(--accent-ink);
+      }
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -773,9 +783,9 @@
         }
       }
     </script>
-    <script src="data-center-prep.js?v=20260922-1"></script>
+    <script src="data-center-prep.js?v=20260924-2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js?v=20260922-1"></script>
+    <script src="supabase-config.js?v=20260924-2"></script>
     <script src="cloud-sync.js"></script>
   </body>
 </html>
